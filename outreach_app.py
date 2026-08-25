@@ -83,6 +83,22 @@ def make_demo(lead):
     path.write_text(page, encoding="utf-8")
     return path
 
+
+def search_places(country, region, api_key):
+    if not api_key:
+        raise ValueError("Set GOOGLE_MAPS_API_KEY before searching public places.")
+    import urllib.request
+    query = f"independent restaurant in {region}, {country}"
+    payload = json.dumps({"textQuery": query, "pageSize": 20, "languageCode": "en"}).encode()
+    req = urllib.request.Request("https://places.googleapis.com/v1/places:searchText", data=payload, method="POST", headers={"Content-Type":"application/json", "X-Goog-Api-Key":api_key, "X-Goog-FieldMask":"places.displayName,places.formattedAddress,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.regularOpeningHours.weekdayDescriptions"})
+    with urllib.request.urlopen(req, timeout=30) as response:
+        data = json.loads(response.read().decode())
+    leads = []
+    for place in data.get("places", []):
+        name = place.get("displayName", {}).get("text", "Unnamed business")
+        hours = "; ".join(place.get("regularOpeningHours", {}).get("weekdayDescriptions", []))
+        leads.append(Lead(name, "Restaurant", region, country, phone=place.get("internationalPhoneNumber", ""), address=place.get("formattedAddress", ""), hours=hours, website=place.get("websiteUri", ""), rating=float(place.get("rating", 0) or 0), reviews=int(place.get("userRatingCount", 0) or 0), mobile_gap=15, booking_signal=10, independent_signal=12, source="Google Places API"))
+    return leads
 FIXED = {
     "price": "I can provide a fixed quote after confirming the pages, booking needs and whether you own a domain. There is no charge for the initial concept.",
     "timeline": "A simple restaurant site usually takes 3–7 working days after content and photos are approved.",
@@ -110,6 +126,8 @@ def smtp_send(config, recipient, subject, body):
     msg = EmailMessage()
     msg["From"], msg["To"], msg["Subject"] = config["from_email"], recipient, subject
     msg.set_content(body)
+    paragraphs = "".join(f"<p>{esc(line) if not line.startswith('file:') else f'<a href=\"{esc(line)}\">Open the personalised website concept ↗</a>'}</p>" for line in body.splitlines() if line.strip())
+    msg.add_alternative(f"<html><body style='font-family:Arial,sans-serif;color:#202820'><div style='background:#f5f0e4;padding:28px;border-radius:12px'><h2 style='color:#c75a37'>A small website idea for your business</h2>{paragraphs}</div></body></html>", subtype="html")
     with smtplib.SMTP(config["host"], int(config.get("port", 587)), timeout=30) as server:
         server.starttls(context=ssl.create_default_context())
         server.login(config["username"], config["password"])
@@ -163,8 +181,21 @@ class App:
         for col, title, width in [("rank","#",40),("name","Business",190),("city","City",100),("category","Category",150),("score","Score",65),("rating","Rating",65),("site","Site",65),("source","Source",260)]:
             self.tree.heading(col,text=title); self.tree.column(col,width=width)
         self.tree.pack(fill=BOTH, expand=True, pady=12); self.tree.bind("<<TreeviewSelect>>", self.pick)
+        search=ttk.Frame(self.t_research); search.pack(fill=X, pady=(0,8)); self.maps_key=StringVar(value=os.environ.get("GOOGLE_MAPS_API_KEY","")); ttk.Label(search,text="Google Places API key (optional)").pack(side=LEFT); ttk.Entry(search,textvariable=self.maps_key,show="*",width=26).pack(side=LEFT,padx=8); ttk.Button(search,text="Search selected region",command=self.search_web).pack(side=LEFT)
         ttk.Button(self.t_research, text="Export ranking CSV", command=self.export).pack(anchor="e")
         self.populate()
+
+    def search_web(self):
+        try:
+            found = search_places(self.country.get(), self.region.get(), self.maps_key.get().strip())
+            if not found:
+                messagebox.showinfo("No results", "No public places were returned for this query.")
+                return
+            self.leads = found
+            self.populate()
+            messagebox.showinfo("Search complete", f"Loaded {len(found)} public places. Review every record before outreach.")
+        except Exception as exc:
+            messagebox.showerror("Search failed", str(exc))
 
     def populate(self):
         for item in self.tree.get_children(): self.tree.delete(item)
@@ -225,13 +256,22 @@ class App:
         ttk.Label(self.t_reply,text="Drop .eml files into mailbox/inbox, or paste an inbound message. Replies stay drafts until reviewed.",wraplength=900).pack(anchor="w")
         self.inbox=ttk.Combobox(self.t_reply,values=[x[0] for x in read_eml()],width=60); self.inbox.pack(anchor="w",pady=10); self.inbox.bind("<<ComboboxSelected>>",self.load_eml)
         self.incoming=ttk.Text(self.t_reply,height=10,wrap="word"); self.incoming.pack(fill=X)
-        row=ttk.Frame(self.t_reply); row.pack(fill=X,pady=10); ttk.Button(row,text="Fixed answer",command=self.fixed).pack(side=LEFT); ttk.Label(row,text="Optional AI key").pack(side=LEFT,padx=(20,4)); self.key=StringVar(value=os.environ.get("OPENAI_API_KEY","")); ttk.Entry(row,textvariable=self.key,show="*",width=25).pack(side=LEFT); ttk.Button(row,text="Generate AI draft",command=self.ai).pack(side=LEFT,padx=8)
-        self.reply=ttk.Text(self.t_reply,height=9,wrap="word"); self.reply.pack(fill=BOTH,expand=True)
+        row=ttk.Frame(self.t_reply); row.pack(fill=X,pady=10); ttk.Button(row,text="Fixed answer",command=self.fixed).pack(side=LEFT); ttk.Label(row,text="Optional AI key").pack(side=LEFT,padx=(20,4)); self.key=StringVar(value=os.environ.get("OPENAI_API_KEY","")); ttk.Entry(row,textvariable=self.key,show="*",width=25).pack(side=LEFT); ttk.Button(row,text="Generate AI draft",command=self.ai).pack(side=LEFT,padx=8); ttk.Button(row,text="Send reply after confirmation",command=self.send_reply).pack(side=LEFT,padx=8)
+        self.reply_to=StringVar(); ttk.Label(self.t_reply,textvariable=self.reply_to,foreground="#667").pack(anchor="w"); self.reply=ttk.Text(self.t_reply,height=9,wrap="word"); self.reply.pack(fill=BOTH,expand=True)
 
     def load_eml(self,_=None):
-        for name,_,_,body in read_eml():
-            if name==self.inbox.get(): self.incoming.delete("1.0",END); self.incoming.insert("1.0",body)
+        for name,sender,_,body in read_eml():
+            if name==self.inbox.get(): self.reply_to.set("Reply to: "+sender); self.incoming.delete("1.0",END); self.incoming.insert("1.0",body)
 
+    def send_reply(self):
+        recipient=self.reply_to.get().replace("Reply to: ","").strip(); body=self.reply.get("1.0",END).strip()
+        if not recipient or "@" not in recipient: messagebox.showwarning("No recipient","Load an inbound .eml first or enter a verified recipient."); return
+        if not body: messagebox.showwarning("Empty draft","Generate or write a reply first."); return
+        if not messagebox.askyesno("Confirm reply",f"Send one reply to {recipient}?"): return
+        try:
+            with open(os.environ.get("SMTP_CONFIG_JSON","smtp_config.json"),encoding="utf-8") as stream: config=json.load(stream)
+            smtp_send(config,recipient,"Re: Website concept",body); messagebox.showinfo("Sent","Reply sent successfully.")
+        except Exception as exc: messagebox.showerror("Send failed",str(exc))
     def fixed(self):
         self.reply.delete("1.0",END); self.reply.insert("1.0",fixed_answer(self.incoming.get("1.0",END)))
 
@@ -252,5 +292,11 @@ class App:
 
 if __name__ == "__main__":
     root=Tk(); App(root); root.mainloop()
+
+
+
+
+
+
 
 
