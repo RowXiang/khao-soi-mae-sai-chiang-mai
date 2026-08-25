@@ -19,8 +19,10 @@ from tkinter import ttk
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "campaign_output"
 INBOX = ROOT / "mailbox" / "inbox"
+OUTBOX = ROOT / "mailbox" / "outbox"
 OUT.mkdir(exist_ok=True)
 INBOX.mkdir(parents=True, exist_ok=True)
+OUTBOX.mkdir(parents=True, exist_ok=True)
 
 @dataclass
 class Lead:
@@ -133,6 +135,14 @@ def smtp_send(config, recipient, subject, body):
         server.login(config["username"], config["password"])
         server.send_message(msg)
 
+
+def save_eml(recipient, subject, body):
+    msg = EmailMessage()
+    msg["From"], msg["To"], msg["Subject"] = "preview@example.test", recipient, subject
+    msg.set_content(body)
+    path = OUTBOX / ("draft-" + slug(subject) + ".eml")
+    path.write_bytes(bytes(msg))
+    return path
 def read_eml():
     result = []
     for path in sorted(INBOX.glob("*.eml")):
@@ -243,7 +253,11 @@ class App:
         subject, body = compose(self.selected,self.demo,self.sender.get()); self.subject.set(subject); self.recipient.set(self.selected.email); self.body.delete("1.0",END); self.body.insert("1.0",body)
 
     def send(self):
-        if self.dry.get(): messagebox.showinfo("Dry run","No email was sent. Uncheck dry-run only after reviewing the message."); return
+        if self.dry.get():
+            if self.recipient.get().strip() and self.subject.get().strip() and self.body.get("1.0",END).strip():
+                path=save_eml(self.recipient.get().strip(),self.subject.get().strip(),self.body.get("1.0",END).strip()); messagebox.showinfo("Virtual mailbox",f"Saved preview email to {path}")
+            else: messagebox.showinfo("Dry run","No email was sent. Fill recipient, subject and body first.")
+            return
         recipient, subject, body = self.recipient.get().strip(), self.subject.get().strip(), self.body.get("1.0",END).strip()
         if not recipient or not subject or not body: messagebox.showwarning("Incomplete","Recipient, subject and body are required."); return
         if not messagebox.askyesno("Confirm one-to-one send",f"Send one email to {recipient}?"): return
@@ -292,6 +306,8 @@ class App:
 
 if __name__ == "__main__":
     root=Tk(); App(root); root.mainloop()
+
+
 
 
 
