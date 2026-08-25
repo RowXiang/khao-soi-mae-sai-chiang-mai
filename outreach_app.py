@@ -160,24 +160,42 @@ def fixed_answer(message):
             return FIXED[key]
     return "No fixed answer matched. Review and write a human response."
 
+UI = {
+    "English": {
+        "app":"Local Outreach Studio", "tag":"  research → demo → draft → human-approved send", "language":"Language", "country":"Country", "region":"Region", "load":"Load sample leads", "research":"1 · Research & ranking", "demo":"2 · Demo website", "mail":"3 · Email draft", "reply":"4 · Replies", "score_help":"Score = missing-site need + mobile gap + social proof + service fit. Edit the data before outreach.", "business":"Business", "city":"City", "category":"Category", "score":"Score", "rating":"Rating", "site":"Site", "source":"Source", "api":"Google Places API key (optional)", "search":"Search selected region", "export":"Export ranking CSV", "select_demo":"Select a lead in Research, then generate a personalized demo.", "generate":"Generate website demo", "open":"Open demo in browser", "selected":"Selected", "sender":"Sender name", "compose":"Compose draft", "subject":"Subject", "recipient":"Recipient", "dry":"Preview / dry-run", "send":"Send after confirmation", "no_bulk":"No bulk sending. Review recipient, content and opt-out basis before each message.", "reply_help":"Drop .eml files into mailbox/inbox, or paste an inbound message. Replies stay drafts until reviewed.", "fixed":"Fixed answer", "ai_key":"Optional AI key", "ai":"Generate AI draft", "send_reply":"Send reply after confirmation"},
+    "简体中文": {
+        "app":"本地商家开发工作台", "tag":"  搜索 → Demo → 邮件草稿 → 人工确认发送", "language":"界面语言", "country":"国家", "region":"区域", "load":"加载示例商家", "research":"1 · 商家搜索与排序", "demo":"2 · 网站示意图", "mail":"3 · 邮件草稿", "reply":"4 · 回信处理", "score_help":"评分 = 建站需求 + 移动端差距 + 评价信号 + 服务适配度。外联前请人工核对数据。", "business":"商家", "city":"城市", "category":"类型", "score":"评分", "rating":"评价", "site":"官网", "source":"来源", "api":"Google Places API 密钥（可选）", "search":"搜索当前区域", "export":"导出排序 CSV", "select_demo":"请先在“商家搜索与排序”中选择商家，再生成专属 Demo。", "generate":"生成网站示意图", "open":"在浏览器打开 Demo", "selected":"已选择", "sender":"发件人姓名", "compose":"生成邮件草稿", "subject":"邮件主题", "recipient":"收件人邮箱", "dry":"预览 / 虚拟邮箱", "send":"确认后发送", "no_bulk":"不支持群发。每封邮件都必须人工核对收件人、内容和退订依据。", "reply_help":"将 .eml 回信放入 mailbox/inbox，或粘贴回信内容。回复只会生成草稿，需人工审核。", "fixed":"匹配固定答案", "ai_key":"可选 AI 密钥", "ai":"生成 AI 回复草稿", "send_reply":"确认后发送回复"}
+}
 class App:
     def __init__(self, root):
         self.root, self.leads, self.selected, self.demo = root, LEADS[:], None, None
-        root.title("Local Outreach Studio")
+        self.lang = "English"
+        root.title(self.tr("app"))
         root.geometry("1120x760")
         self.build()
 
+    def tr(self, key):
+        return UI.get(self.lang, UI["English"]).get(key, key)
+
+    def change_language(self, _=None):
+        self.lang = self.language.get()
+        for child in self.root.winfo_children():
+            child.destroy()
+        self.build()
     def build(self):
         top = ttk.Frame(self.root, padding=12); top.pack(fill=X)
-        ttk.Label(top, text="Local Outreach Studio", font=("Segoe UI", 18, "bold")).pack(side=LEFT)
-        ttk.Label(top, text="  research → demo → draft → human-approved send", foreground="#667").pack(side=LEFT, padx=12)
+        ttk.Label(top, text=self.tr("app"), font=("Segoe UI", 18, "bold")).pack(side=LEFT)
+        ttk.Label(top, text=self.tr("tag"), foreground="#667").pack(side=LEFT, padx=12)
         self.country = StringVar(value="Thailand"); self.region = StringVar(value="Chiang Mai")
-        ttk.Label(top, text="Country").pack(side=LEFT, padx=(25,4)); c = ttk.Combobox(top, textvariable=self.country, values=list(COUNTRIES), width=15); c.pack(side=LEFT); c.bind("<<ComboboxSelected>>", self.change_regions)
-        ttk.Label(top, text="Region").pack(side=LEFT, padx=(10,4)); self.regions = ttk.Combobox(top, textvariable=self.region, values=COUNTRIES["Thailand"], width=15); self.regions.pack(side=LEFT)
-        ttk.Button(top, text="Load sample leads", command=self.load).pack(side=LEFT, padx=10)
+        ttk.Label(top, text=self.tr("country")).pack(side=LEFT, padx=(25,4)); c = ttk.Combobox(top, textvariable=self.country, values=list(COUNTRIES), width=15); c.pack(side=LEFT); c.bind("<<ComboboxSelected>>", self.change_regions)
+        ttk.Label(top, text=self.tr("region")).pack(side=LEFT, padx=(10,4)); self.regions = ttk.Combobox(top, textvariable=self.region, values=COUNTRIES["Thailand"], width=15); self.regions.pack(side=LEFT)
+        ttk.Button(top, text=self.tr("load"), command=self.load).pack(side=LEFT, padx=10)
+        ttk.Label(top, text=self.tr("language")).pack(side=LEFT, padx=(12,4))
+        self.language = StringVar(value=self.lang)
+        lang_box = ttk.Combobox(top, textvariable=self.language, values=["English", "简体中文"], state="readonly", width=10); lang_box.pack(side=LEFT); lang_box.bind("<<ComboboxSelected>>", self.change_language)
         tabs = ttk.Notebook(self.root); tabs.pack(fill=BOTH, expand=True, padx=12, pady=(0,12))
         self.t_research, self.t_demo, self.t_mail, self.t_reply = [ttk.Frame(tabs, padding=12) for _ in range(4)]
-        for tab, title in [(self.t_research,"1 · Research & ranking"),(self.t_demo,"2 · Demo website"),(self.t_mail,"3 · Email draft"),(self.t_reply,"4 · Replies")]: tabs.add(tab, text=title)
+        for tab, title in [(self.t_research,self.tr("research")),(self.t_demo,self.tr("demo")),(self.t_mail,self.tr("mail")),(self.t_reply,self.tr("reply"))]: tabs.add(tab, text=title)
         self.build_research(); self.build_demo(); self.build_mail(); self.build_reply()
 
     def change_regions(self, _=None):
@@ -185,14 +203,14 @@ class App:
         if values: self.region.set(values[0])
 
     def build_research(self):
-        ttk.Label(self.t_research, text="Score = missing-site need + mobile gap + social proof + service fit. Edit the data before outreach.", foreground="#667").pack(anchor="w")
+        ttk.Label(self.t_research, text=self.tr("score_help"), foreground="#667").pack(anchor="w")
         cols = ("rank","name","city","category","score","rating","site","source")
         self.tree = ttk.Treeview(self.t_research, columns=cols, show="headings", height=17)
-        for col, title, width in [("rank","#",40),("name","Business",190),("city","City",100),("category","Category",150),("score","Score",65),("rating","Rating",65),("site","Site",65),("source","Source",260)]:
+        for col, title, width in [("rank","#",40),("name",self.tr("business"),190),("city",self.tr("city"),100),("category",self.tr("category"),150),("score",self.tr("score"),65),("rating",self.tr("rating"),65),("site",self.tr("site"),65),("source",self.tr("source"),260)]:
             self.tree.heading(col,text=title); self.tree.column(col,width=width)
         self.tree.pack(fill=BOTH, expand=True, pady=12); self.tree.bind("<<TreeviewSelect>>", self.pick)
-        search=ttk.Frame(self.t_research); search.pack(fill=X, pady=(0,8)); self.maps_key=StringVar(value=os.environ.get("GOOGLE_MAPS_API_KEY","")); ttk.Label(search,text="Google Places API key (optional)").pack(side=LEFT); ttk.Entry(search,textvariable=self.maps_key,show="*",width=26).pack(side=LEFT,padx=8); ttk.Button(search,text="Search selected region",command=self.search_web).pack(side=LEFT)
-        ttk.Button(self.t_research, text="Export ranking CSV", command=self.export).pack(anchor="e")
+        search=ttk.Frame(self.t_research); search.pack(fill=X, pady=(0,8)); self.maps_key=StringVar(value=os.environ.get("GOOGLE_MAPS_API_KEY","")); ttk.Label(search,text=self.tr("api")).pack(side=LEFT); ttk.Entry(search,textvariable=self.maps_key,show="*",width=26).pack(side=LEFT,padx=8); ttk.Button(search,text=self.tr("search"),command=self.search_web).pack(side=LEFT)
+        ttk.Button(self.t_research, text=self.tr("export"), command=self.export).pack(anchor="e")
         self.populate()
 
     def search_web(self):
@@ -216,8 +234,8 @@ class App:
         if not self.tree.selection(): return
         key = self.tree.selection()[0]; self.selected = next((x for x in self.leads if slug(x.name)==key), None)
         if self.selected:
-            self.detail.config(text=f"Selected: {self.selected.name} · score {self.selected.score}/100 · {self.selected.address}")
-            self.mail_selected.config(text=f"Selected: {self.selected.name}")
+            self.detail.config(text=f"{self.tr('selected')}: {self.selected.name} · score {self.selected.score}/100 · {self.selected.address}")
+            self.mail_selected.config(text=f"{self.tr('selected')}: {self.selected.name}")
 
     def load(self):
         self.leads = LEADS[:]; self.populate(); messagebox.showinfo("Loaded","Thailand sample leads loaded. Replace with approved public data before outreach.")
@@ -230,22 +248,22 @@ class App:
             for lead in sorted(self.leads,key=lambda x:x.score,reverse=True): writer.writerow({**asdict(lead),"score":lead.score})
 
     def build_demo(self):
-        self.detail = ttk.Label(self.t_demo, text="Select a lead in Research, then generate a personalized demo.", wraplength=900); self.detail.pack(anchor="w")
-        ttk.Button(self.t_demo,text="Generate website demo",command=self.generate).pack(anchor="w",pady=12)
+        self.detail = ttk.Label(self.t_demo, text=self.tr("select_demo"), wraplength=900); self.detail.pack(anchor="w")
+        ttk.Button(self.t_demo,text=self.tr("generate"),command=self.generate).pack(anchor="w",pady=12)
         self.demo_path = StringVar(); ttk.Entry(self.t_demo,textvariable=self.demo_path).pack(fill=X,pady=5)
-        ttk.Button(self.t_demo,text="Open demo in browser",command=lambda:webbrowser.open(Path(self.demo_path.get()).as_uri()) if self.demo_path.get() else None).pack(anchor="w")
+        ttk.Button(self.t_demo,text=self.tr("open"),command=lambda:webbrowser.open(Path(self.demo_path.get()).as_uri()) if self.demo_path.get() else None).pack(anchor="w")
 
     def generate(self):
         if not self.selected: messagebox.showwarning("Select a lead","Select a lead in the ranking table first."); return
         self.demo = make_demo(self.selected); self.demo_path.set(str(self.demo)); messagebox.showinfo("Created",str(self.demo))
 
     def build_mail(self):
-        self.mail_selected = ttk.Label(self.t_mail,text="Selected: none"); self.mail_selected.pack(anchor="w")
-        row=ttk.Frame(self.t_mail); row.pack(fill=X,pady=10); ttk.Label(row,text="Sender name").pack(side=LEFT); self.sender=StringVar(value="Your Name"); ttk.Entry(row,textvariable=self.sender,width=24).pack(side=LEFT,padx=8); ttk.Button(row,text="Compose draft",command=self.compose_mail).pack(side=LEFT)
-        ttk.Label(self.t_mail,text="Subject").pack(anchor="w"); self.subject=StringVar(); ttk.Entry(self.t_mail,textvariable=self.subject).pack(fill=X,pady=4)
+        self.mail_selected = ttk.Label(self.t_mail,text=f"{self.tr('selected')}: none"); self.mail_selected.pack(anchor="w")
+        row=ttk.Frame(self.t_mail); row.pack(fill=X,pady=10); ttk.Label(row,text=self.tr("sender")).pack(side=LEFT); self.sender=StringVar(value="Your Name"); ttk.Entry(row,textvariable=self.sender,width=24).pack(side=LEFT,padx=8); ttk.Button(row,text=self.tr("compose"),command=self.compose_mail).pack(side=LEFT)
+        ttk.Label(self.t_mail,text=self.tr("subject")).pack(anchor="w"); self.subject=StringVar(); ttk.Entry(self.t_mail,textvariable=self.subject).pack(fill=X,pady=4)
         self.body=Text(self.t_mail,height=19,wrap="word"); self.body.pack(fill=BOTH,expand=True)
-        send=ttk.Frame(self.t_mail); send.pack(fill=X,pady=8); ttk.Label(send,text="Recipient").pack(side=LEFT); self.recipient=StringVar(); ttk.Entry(send,textvariable=self.recipient,width=34).pack(side=LEFT,padx=8); self.dry=BooleanVar(value=True); ttk.Checkbutton(send,text="Preview / dry-run",variable=self.dry).pack(side=LEFT,padx=12); ttk.Button(send,text="Send after confirmation",command=self.send).pack(side=LEFT)
-        ttk.Label(self.t_mail,text="No bulk sending. Review recipient, content and opt-out basis before each message.",foreground="#a55").pack(anchor="w")
+        send=ttk.Frame(self.t_mail); send.pack(fill=X,pady=8); ttk.Label(send,text=self.tr("recipient")).pack(side=LEFT); self.recipient=StringVar(); ttk.Entry(send,textvariable=self.recipient,width=34).pack(side=LEFT,padx=8); self.dry=BooleanVar(value=True); ttk.Checkbutton(send,text=self.tr("dry"),variable=self.dry).pack(side=LEFT,padx=12); ttk.Button(send,text=self.tr("send"),command=self.send).pack(side=LEFT)
+        ttk.Label(self.t_mail,text=self.tr("no_bulk"),foreground="#a55").pack(anchor="w")
 
     def compose_mail(self):
         if not self.selected: messagebox.showwarning("Select a lead","Select a lead first."); return
@@ -267,10 +285,10 @@ class App:
         except Exception as exc: messagebox.showerror("Send failed",str(exc))
 
     def build_reply(self):
-        ttk.Label(self.t_reply,text="Drop .eml files into mailbox/inbox, or paste an inbound message. Replies stay drafts until reviewed.",wraplength=900).pack(anchor="w")
+        ttk.Label(self.t_reply,text=self.tr("reply_help"),wraplength=900).pack(anchor="w")
         self.inbox=ttk.Combobox(self.t_reply,values=[x[0] for x in read_eml()],width=60); self.inbox.pack(anchor="w",pady=10); self.inbox.bind("<<ComboboxSelected>>",self.load_eml)
         self.incoming=Text(self.t_reply,height=10,wrap="word"); self.incoming.pack(fill=X)
-        row=ttk.Frame(self.t_reply); row.pack(fill=X,pady=10); ttk.Button(row,text="Fixed answer",command=self.fixed).pack(side=LEFT); ttk.Label(row,text="Optional AI key").pack(side=LEFT,padx=(20,4)); self.key=StringVar(value=os.environ.get("OPENAI_API_KEY","")); ttk.Entry(row,textvariable=self.key,show="*",width=25).pack(side=LEFT); ttk.Button(row,text="Generate AI draft",command=self.ai).pack(side=LEFT,padx=8); ttk.Button(row,text="Send reply after confirmation",command=self.send_reply).pack(side=LEFT,padx=8)
+        row=ttk.Frame(self.t_reply); row.pack(fill=X,pady=10); ttk.Button(row,text=self.tr("fixed"),command=self.fixed).pack(side=LEFT); ttk.Label(row,text=self.tr("ai_key")).pack(side=LEFT,padx=(20,4)); self.key=StringVar(value=os.environ.get("OPENAI_API_KEY","")); ttk.Entry(row,textvariable=self.key,show="*",width=25).pack(side=LEFT); ttk.Button(row,text=self.tr("ai"),command=self.ai).pack(side=LEFT,padx=8); ttk.Button(row,text=self.tr("send_reply"),command=self.send_reply).pack(side=LEFT,padx=8)
         self.reply_to=StringVar(); ttk.Label(self.t_reply,textvariable=self.reply_to,foreground="#667").pack(anchor="w"); self.reply=Text(self.t_reply,height=9,wrap="word"); self.reply.pack(fill=BOTH,expand=True)
 
     def load_eml(self,_=None):
@@ -306,6 +324,10 @@ class App:
 
 if __name__ == "__main__":
     root=Tk(); App(root); root.mainloop()
+
+
+
+
 
 
 
