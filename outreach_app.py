@@ -13,7 +13,7 @@ from email.message import EmailMessage
 from email.parser import BytesParser
 from email.policy import default
 from pathlib import Path
-from tkinter import END, BOTH, LEFT, X, BooleanVar, StringVar, Tk, filedialog, messagebox
+from tkinter import END, BOTH, LEFT, X, BooleanVar, StringVar, Text, Tk, filedialog, messagebox
 from tkinter import ttk
 
 ROOT = Path(__file__).resolve().parent
@@ -243,7 +243,7 @@ class App:
         self.mail_selected = ttk.Label(self.t_mail,text="Selected: none"); self.mail_selected.pack(anchor="w")
         row=ttk.Frame(self.t_mail); row.pack(fill=X,pady=10); ttk.Label(row,text="Sender name").pack(side=LEFT); self.sender=StringVar(value="Your Name"); ttk.Entry(row,textvariable=self.sender,width=24).pack(side=LEFT,padx=8); ttk.Button(row,text="Compose draft",command=self.compose_mail).pack(side=LEFT)
         ttk.Label(self.t_mail,text="Subject").pack(anchor="w"); self.subject=StringVar(); ttk.Entry(self.t_mail,textvariable=self.subject).pack(fill=X,pady=4)
-        self.body=ttk.Text(self.t_mail,height=19,wrap="word"); self.body.pack(fill=BOTH,expand=True)
+        self.body=Text(self.t_mail,height=19,wrap="word"); self.body.pack(fill=BOTH,expand=True)
         send=ttk.Frame(self.t_mail); send.pack(fill=X,pady=8); ttk.Label(send,text="Recipient").pack(side=LEFT); self.recipient=StringVar(); ttk.Entry(send,textvariable=self.recipient,width=34).pack(side=LEFT,padx=8); self.dry=BooleanVar(value=True); ttk.Checkbutton(send,text="Preview / dry-run",variable=self.dry).pack(side=LEFT,padx=12); ttk.Button(send,text="Send after confirmation",command=self.send).pack(side=LEFT)
         ttk.Label(self.t_mail,text="No bulk sending. Review recipient, content and opt-out basis before each message.",foreground="#a55").pack(anchor="w")
 
@@ -269,9 +269,9 @@ class App:
     def build_reply(self):
         ttk.Label(self.t_reply,text="Drop .eml files into mailbox/inbox, or paste an inbound message. Replies stay drafts until reviewed.",wraplength=900).pack(anchor="w")
         self.inbox=ttk.Combobox(self.t_reply,values=[x[0] for x in read_eml()],width=60); self.inbox.pack(anchor="w",pady=10); self.inbox.bind("<<ComboboxSelected>>",self.load_eml)
-        self.incoming=ttk.Text(self.t_reply,height=10,wrap="word"); self.incoming.pack(fill=X)
+        self.incoming=Text(self.t_reply,height=10,wrap="word"); self.incoming.pack(fill=X)
         row=ttk.Frame(self.t_reply); row.pack(fill=X,pady=10); ttk.Button(row,text="Fixed answer",command=self.fixed).pack(side=LEFT); ttk.Label(row,text="Optional AI key").pack(side=LEFT,padx=(20,4)); self.key=StringVar(value=os.environ.get("OPENAI_API_KEY","")); ttk.Entry(row,textvariable=self.key,show="*",width=25).pack(side=LEFT); ttk.Button(row,text="Generate AI draft",command=self.ai).pack(side=LEFT,padx=8); ttk.Button(row,text="Send reply after confirmation",command=self.send_reply).pack(side=LEFT,padx=8)
-        self.reply_to=StringVar(); ttk.Label(self.t_reply,textvariable=self.reply_to,foreground="#667").pack(anchor="w"); self.reply=ttk.Text(self.t_reply,height=9,wrap="word"); self.reply.pack(fill=BOTH,expand=True)
+        self.reply_to=StringVar(); ttk.Label(self.t_reply,textvariable=self.reply_to,foreground="#667").pack(anchor="w"); self.reply=Text(self.t_reply,height=9,wrap="word"); self.reply.pack(fill=BOTH,expand=True)
 
     def load_eml(self,_=None):
         for name,sender,_,body in read_eml():
@@ -306,6 +306,7 @@ class App:
 
 if __name__ == "__main__":
     root=Tk(); App(root); root.mainloop()
+
 
 
 
